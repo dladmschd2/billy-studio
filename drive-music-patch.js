@@ -28,6 +28,14 @@
     return '';
   }
 
+  function playDrive(player,u){
+    if(!u)return;
+    const target=src(u);
+    if(player.getAttribute('src')!==target){player.src=target;player.load();}
+    const st=document.getElementById('musicStatus');
+    if(st)st.innerHTML='<strong>♪ Google Drive 음악</strong><br>이 에피소드에 연결된 Drive 음악입니다.';
+  }
+
   function mount(){
     const player=document.getElementById('episodeAudio');
     const musicCard=[...document.querySelectorAll('.card')].find(c=>c.querySelector('h3')?.textContent.trim()==='이 편의 음악');
@@ -50,22 +58,24 @@
     if(!input||!apply||!open||!clear)return;
 
     const saved=savedUrl();
-    if(saved&&!input.value)input.value=saved;
+    if(saved&&document.activeElement!==input&&input.value!==saved)input.value=saved;
+    if(saved)playDrive(player,saved);
     open.hidden=clear.hidden=!input.value.trim();
 
-    const play=u=>{
-      if(!u)return;
-      player.src=src(u);player.load();
-      const st=document.getElementById('musicStatus');
-      if(st)st.innerHTML='<strong>♪ Google Drive 음악</strong><br>이 에피소드에 연결된 Drive 음악입니다.';
-    };
-
-    apply.onclick=()=>{
+    const saveAndConnect=()=>{
       const u=input.value.trim();
-      if(!u)return alert('Google Drive 음악 링크를 입력해주세요.');
+      if(!u)return;
       window.updateEp?.('musicDriveUrl',u);
       open.hidden=clear.hidden=false;
-      play(u);
+      playDrive(player,u);
+    };
+
+    input.onchange=saveAndConnect;
+    input.onpaste=()=>setTimeout(saveAndConnect,0);
+    input.onblur=saveAndConnect;
+    apply.onclick=()=>{
+      if(!input.value.trim())return alert('Google Drive 음악 링크를 입력해주세요.');
+      saveAndConnect();
     };
     open.onclick=()=>{const u=input.value.trim();if(u)window.open(u,'_blank','noopener')};
     clear.onclick=()=>{
@@ -74,6 +84,8 @@
       open.hidden=clear.hidden=true;
       player.removeAttribute('src');
       player.load();
+      const st=document.getElementById('musicStatus');
+      if(st)st.textContent='Google Drive 음악 링크를 연결해주세요.';
     };
   }
 
