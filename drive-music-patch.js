@@ -1,31 +1,36 @@
-window.__BILLY_CHUNKS=window.__BILLY_CHUNKS||[];window.__BILLY_CHUNKS.push(`
-// Google Drive music-link support
-for(const t of data.topics||[])for(const s of t.scenarios||[])for(const ep of s.episodes||[]){if(typeof ep.musicDriveUrl!=='string')ep.musicDriveUrl='';}
-const __editorOriginal=editor;
-editor=function(e){
-  let html=__editorOriginal(e);
-  const marker='<label class="field"><span>연결된 폴더에서 음악 고르기</span>';
-  const driveBlock=`<label class="field"><span>Google Drive 음악 링크</span><input id="musicDriveUrl" value="${esc(e.musicDriveUrl||'')}" placeholder="https://drive.google.com/file/d/.../view" oninput="updateDriveMusicUrl(this.value)"></label><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn primary" onclick="applyDriveMusic()">Drive 음악 연결</button>${e.musicDriveUrl?`<button type="button" class="btn" onclick="openDriveMusic()">Drive에서 열기</button><button type="button" class="btn" onclick="clearDriveMusic()">링크 지우기</button>`:''}</div><p style="font-size:9px;line-height:1.55;color:var(--muted);margin:7px 0 10px">Drive 파일 공유 권한을 ‘링크가 있는 사용자 · 뷰어’로 설정해주세요. Drive 링크가 있으면 로컬 폴더 음악보다 우선 재생합니다.</p>`;
-  if(html.includes(marker)) html=html.replace(marker,driveBlock+marker);
-  return html;
-};
-function driveAudioSrc(url){const id=driveId(url||'');return id?`https://drive.google.com/uc?export=download&id=${id}`:(url||'');}
-window.updateDriveMusicUrl=v=>{current().e.musicDriveUrl=v.trim();schedule();};
-window.applyDriveMusic=()=>{const input=document.getElementById('musicDriveUrl');if(input)current().e.musicDriveUrl=input.value.trim();if(!current().e.musicDriveUrl)return toast('Google Drive 음악 링크를 입력해주세요.');schedule();prepareEpisodeMusic(false);renderWork();toast('Drive 음악을 연결했어요.');};
-window.clearDriveMusic=()=>{current().e.musicDriveUrl='';schedule();renderWork();setTimeout(()=>prepareEpisodeMusic(false),0);toast('Drive 음악 링크를 지웠어요.');};
-window.openDriveMusic=()=>{const u=current().e.musicDriveUrl;if(u)window.open(u,'_blank','noopener');};
-const __prepareEpisodeMusicOriginal=prepareEpisodeMusic;
-prepareEpisodeMusic=async function(tryPlay){
-  const el=document.getElementById('episodeAudio'),st=document.getElementById('musicStatus');if(!el)return;
-  const {e}=current();
-  if(e?.musicDriveUrl){
-    if(activeAudioUrl){URL.revokeObjectURL(activeAudioUrl);activeAudioUrl=null;}
-    const src=driveAudioSrc(e.musicDriveUrl);el.src=src;el.load();
-    if(st)st.innerHTML='<strong>♪ Google Drive 음악</strong><br>이 에피소드에 저장된 Drive 링크를 재생합니다.';
-    el.onerror=()=>{if(st)st.innerHTML='<strong>Drive에서 바로 재생하지 못했어요.</strong><br>공유 권한을 확인하거나 아래 ‘Drive에서 열기’를 이용해주세요.';};
-    if(tryPlay){try{await el.play()}catch(_){}}
-    return;
+// Google Drive music UI patch. Runs after the main Billy Studio app is evaluated.
+(() => {
+  const KEY='eungchong_studio_v2';
+  const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const driveId=u=>String(u||'').match(/\/d\/([\w-]+)/)?.[1]||String(u||'').match(/[?&]id=([\w-]+)/)?.[1]||'';
+  const src=u=>{const id=driveId(u);return id?`https://drive.google.com/uc?export=download&id=${id}`:u};
+  function currentEpisodeFromSession(){
+    try{
+      const d=JSON.parse(sessionStorage.getItem(KEY)||'null');
+      const title=document.querySelector('.ep-title')?.value;
+      if(!d||!title)return null;
+      for(const t of d.topics||[])for(const s of t.scenarios||[])for(const e of s.episodes||[])if(e.title===title)return e;
+    }catch(_){}
+    return null;
   }
-  return __prepareEpisodeMusicOriginal(tryPlay);
-};
-`);
+  function enhance(){
+    const player=document.getElementById('episodeAudio');
+    if(!player||document.getElementById('driveMusicBox'))return;
+    const select=document.getElementById('musicSelect');
+    const anchor=select?.closest('label.field');
+    if(!anchor)return;
+    const ep=currentEpisodeFromSession();
+    const saved=ep?.musicDriveUrl||'';
+    const box=document.createElement('div');box.id='driveMusicBox';
+    box.innerHTML=`<label class="field"><span>Google Drive 음악 링크</span><input id="musicDriveUrl" value="${esc(saved)}" placeholder="https://drive.google.com/file/d/.../view"></label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px"><button type="button" class="btn primary" id="driveApply">Drive 음악 연결</button><button type="button" class="btn" id="driveOpen" ${saved?'':'hidden'}>Drive에서 열기</button><button type="button" class="btn" id="driveClear" ${saved?'':'hidden'}>링크 지우기</button></div><p style="font-size:9px;line-height:1.55;color:var(--muted);margin:0 0 10px">파일 공유 권한을 ‘링크가 있는 사용자 · 뷰어’로 설정해주세요. 링크는 원고와 함께 Supabase에 저장됩니다.</p>`;
+    anchor.parentNode.insertBefore(box,anchor);
+    const input=box.querySelector('#musicDriveUrl'),open=box.querySelector('#driveOpen'),clear=box.querySelector('#driveClear');
+    const play=u=>{if(!u)return;player.src=src(u);player.load();const st=document.getElementById('musicStatus');if(st)st.innerHTML='<strong>♪ Google Drive 음악</strong><br>이 에피소드에 연결된 Drive 음악입니다.';};
+    if(saved)play(saved);
+    box.querySelector('#driveApply').onclick=()=>{const u=input.value.trim();if(!u)return alert('Google Drive 음악 링크를 입력해주세요.');window.updateEp?.('musicDriveUrl',u);open.hidden=clear.hidden=false;play(u);};
+    open.onclick=()=>{const u=input.value.trim();if(u)window.open(u,'_blank','noopener')};
+    clear.onclick=()=>{input.value='';window.updateEp?.('musicDriveUrl','');open.hidden=clear.hidden=true;player.removeAttribute('src');player.load();};
+  }
+  new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
+  enhance();
+})();
