@@ -9,14 +9,14 @@
     .layout{max-width:1360px!important;grid-template-columns:minmax(0,1fr) 250px!important;gap:16px!important}
     .scenario-head,.tabs{max-width:1360px!important}
     .manuscript{min-height:68vh!important}
-    .editor-tools{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.8fr) minmax(220px,.7fr) minmax(220px,.7fr);gap:14px;margin-top:2px;margin-bottom:48px}
+    .editor-tools{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1.8fr) minmax(220px,.7fr);gap:14px;margin-top:2px;margin-bottom:48px}
     .editor-tools>.card{margin:0;box-shadow:var(--shadow)}
     .editor-tools .lyrics-box{margin:0;border:0;background:transparent}
     .editor-tools .lyrics-box summary{font:700 15px "Gowun Batang";cursor:pointer;margin-bottom:10px}
     .panel .card{box-shadow:0 10px 28px #3c30250d}
     #driveMusicBox{margin-top:10px}
-    @media(max-width:1050px){.layout{grid-template-columns:minmax(0,1fr) 230px!important}.editor-tools{grid-template-columns:1fr 1fr}.editor-tools>.lyrics-tool{grid-column:1/-1}}
-    @media(max-width:820px){.layout{grid-template-columns:1fr!important}.panel{grid-column:1}.editor-tools{grid-template-columns:1fr}.editor-tools>.lyrics-tool{grid-column:auto}}
+    @media(max-width:1050px){.layout{grid-template-columns:minmax(0,1fr) 230px!important}.editor-tools{grid-template-columns:1fr}.editor-tools>.lyrics-tool{grid-column:auto}}
+    @media(max-width:820px){.layout{grid-template-columns:1fr!important}.panel{grid-column:1}.editor-tools{grid-template-columns:1fr}}
   `;
   document.head.appendChild(style);
 
@@ -49,7 +49,6 @@
   function simplifyAndMove(){
     const layout=document.querySelector('.layout'),panel=layout?.querySelector('.panel');
     if(!layout||!panel)return;
-    // Remove local-folder music UI; Drive is the primary shared-PC flow.
     const musicSelect=document.getElementById('musicSelect');
     musicSelect?.closest('label.field')?.remove();
     [...panel.querySelectorAll('button')].forEach(b=>{if(b.textContent.includes('컴퓨터에서 음악 폴더 연결'))b.remove()});
@@ -66,7 +65,7 @@
     const ccm=[...panel.querySelectorAll('.card')].find(c=>c.querySelector('h3')?.textContent.trim()==='이 글로 CCM 만들기');
     if(ccm&&!tools.contains(ccm))tools.appendChild(ccm);
     const manage=[...panel.querySelectorAll('.card')].find(c=>c.querySelector('h3')?.textContent.trim()==='편 관리');
-    if(manage&&!tools.contains(manage))tools.appendChild(manage);
+    if(manage)manage.remove();
   }
   function enhance(){ensureDriveBox();simplifyAndMove()}
   setInterval(enhance,300);
